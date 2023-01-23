@@ -7,8 +7,11 @@ class Command(Enum):
     PLAYPAUSE = 'playpause playlist "{}"'
     PLAY_NEXT_TRACK = 'play next track'
     PLAY_PREVIOUS_TRACK = 'play previous track'
+    IS_PLAYING = 'get player state is playing'
     STOP_TRACK = 'stop'
     GET_CURRENT_TRACK_NAME = 'get {{name}} of current track'
+    GET_CURRENT_ARTIST_NAME = 'get {{artist}} of current track'
+    GET_CURRENT_GENRE_NAME = 'get {{genre}} of current track'
     GET_TRACK_POSITION = 'player position'
     GET_TRACK_NAME_BY_ID = 'get {{name}} of track id {}'
     PLAY_TRACK_BY_ID = 'play track id {}'
@@ -16,6 +19,8 @@ class Command(Enum):
     GET_PLAYLIST_NAME_BY_ID = 'get {{name}} of playlist {}'
     GET_CURRENT_PLAYLIST_NAME = 'get {{name}} of current playlist'
     GET_PLAYLIST_COUNT = 'count playlist'
+    SET_TRACK_LOVE = ' set loved of current track to true'
+    SET_TRACK_DISLIKE = 'set disliked of current track to true'
     QUIT = 'quit'
 
     def __str__(self):
