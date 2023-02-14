@@ -10,7 +10,7 @@ import ScriptingBridge
 
 # Initialize database.
 db = PostgresqlDatabase(None)
-db.init('chrisdrew', host='localhost', user='chrisdrew')
+db.init('chris', host='localhost', user='chrisdrew')
 
 class BaseModel(Model):
     class Meta:
@@ -20,11 +20,21 @@ class Genre(BaseModel):
     name = CharField()
     disliked = BooleanField(default = False)
     liked = BooleanField(default = False)
+    timestamp = DateTimeField(default=datetime.datetime.now)
+
+    def save(self, *args, **kwargs):
+        self.timestamp = datetime.datetime.now()
+        return super(Genre, self).save(*args, **kwargs)
 
 class Artist(BaseModel):
     name = CharField()
     disliked = BooleanField(default = False)
     liked = BooleanField(default = False)
+    timestamp = DateTimeField(default=datetime.datetime.now)
+
+    def save(self, *args, **kwargs):
+        self.timestamp = datetime.datetime.now()
+        return super(Artist, self).save(*args, **kwargs)
 
 class Song(BaseModel):
     databaseID = IntegerField()
@@ -35,6 +45,12 @@ class Song(BaseModel):
     genre = ForeignKeyField(Genre, null=True)
     disliked = BooleanField(default = False)
     liked = BooleanField(default = False)
+    timestamp = DateTimeField(default=datetime.datetime.now)
+
+    def save(self, *args, **kwargs):
+        self.timestamp = datetime.datetime.now()
+        return super(Song, self).save(*args, **kwargs)
+
 
 def getGenre(name):
     try:
@@ -70,8 +86,9 @@ class AppleMusicController(rumps.App):
         super(AppleMusicController, self).__init__(name="Music")
         self.music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
         self.icon = "AppIcon.icns"
-        self.menu = ['Play/Pause','Next','Previous','Stop',None,'Like Song', 'Like Artist', 'Dislike Song','Dislike Artist', None]
+        self.menu = ['Play/Pause','Next','Previous','Stop',None,'Like Song', 'Like Artist', 'Dislike Song','Dislike Artist', None,'Only play liked',None]
         self.playing = exec_command(Command.IS_PLAYING)
+        self.oldPosition = 400.1
 
     def startPlaylist(self, sender):
         exec_command(Command.START_PLAYLIST, sender.title.strip())
@@ -112,6 +129,7 @@ class AppleMusicController(rumps.App):
         song = getSong(track, artist, genre)
         exec_command(Command.SET_TRACK_LOVE)
         song.liked = True
+        song.timestamp = datetime.datetime.now
         song.save()
 
     @rumps.clicked('Dislike Song')
@@ -122,9 +140,14 @@ class AppleMusicController(rumps.App):
         song = getSong(track, artist, genre)
         song.disliked = True
         song.liked = False
+        song.timestamp = datetime.datetime.now
         exec_command(Command.SET_TRACK_DISLIKE)
         song.save()
         self.nextTrack(sender)
+
+    @rumps.clicked('Only play liked')
+    def onlyPlayLiked(self, sender):
+        sender.state = not sender.state
 
 
     @rumps.timer(1)
@@ -136,12 +159,21 @@ class AppleMusicController(rumps.App):
     def getPosition(self):
         pos = exec_command(Command.GET_TRACK_POSITION)
         if pos!='missing value':
-            pos = time.strftime("%M:%S", time.gmtime(float(pos)))
+            posString = time.strftime("%M:%S", time.gmtime(float(pos)))
+            
+            if float(pos) < self.oldPosition:
+                skip = exec_command(Command.IS_TRACK_DISLIKED)
+                if skip == 'true':
+                    exec_command(Command.PLAY_NEXT_TRACK)
+                    self.playing = exec_command(Command.IS_PLAYING)
+            else:
+                self.oldPosition = pos
+                
 
             self.menu['Play/Pause'].set_callback(self.playPause)
             #title = exec_command(Command.GET_CURRENT_TRACK_NAME).replace('(','').replace(')','').replace('.','').replace('\'','').strip()
             #self.title = f"{title} • {pos}"
-            self.title = f'{pos}'
+            self.title = f'{posString}'
 
 
 if __name__ == '__main__':
