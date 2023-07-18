@@ -30,8 +30,8 @@ MODLIBS=           $(LOCALMODLIBS) $(BASEMODLIBS)
 VERSION=	3.10
 srcdir=		.
 
-abs_srcdir=	/private/tmp/pythonA3.10-20220811-35232-1s9te1s/Python-3.10.6
-abs_builddir=	/private/tmp/pythonA3.10-20220811-35232-1s9te1s/Python-3.10.6
+abs_srcdir=	/private/tmp/pythonA3.10-20230215-6295-66ppr9/Python-3.10.10
+abs_builddir=	/private/tmp/pythonA3.10-20230215-6295-66ppr9/Python-3.10.10
 
 
 CC=		clang
@@ -81,7 +81,7 @@ MAKESETUP=      $(srcdir)/Modules/makesetup
 OPT=		-DNDEBUG -g -fwrapv -O3 -Wall
 BASECFLAGS=	 -Wno-unused-result -Wsign-compare -Wunreachable-code -fno-common -dynamic
 BASECPPFLAGS=	
-CONFIGURE_CFLAGS=	-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk
+CONFIGURE_CFLAGS=	-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.sdk
 # CFLAGS_NODIST is used for building the interpreter and stdlib C extensions.
 # Use it when a compiler flag should _not_ be part of the distutils CFLAGS
 # once Python is installed (Issue #21121).
@@ -91,7 +91,7 @@ CONFIGURE_CFLAGS_NODIST=-I/opt/homebrew/include -flto -std=c99 -Wextra -Wno-unus
 # once Python is installed (bpo-35257)
 CONFIGURE_LDFLAGS_NODIST=-L/opt/homebrew/lib -Wl,-rpath,/opt/homebrew/lib -flto -Wl,-export_dynamic -g
 CONFIGURE_CPPFLAGS=	-I/opt/homebrew/include
-CONFIGURE_LDFLAGS=	-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk
+CONFIGURE_LDFLAGS=	-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.sdk
 # Avoid assigning CFLAGS, LDFLAGS, etc. so users can use them on the
 # command line to append to these values without stomping the pre-set
 # values.
@@ -180,7 +180,7 @@ PYTHONFRAMEWORKINSTALLDIR= /opt/homebrew/opt/python@3.10/Frameworks/Python.frame
 # Deployment target selected during configure, to be checked
 # by distutils. The export statement is needed to ensure that the
 # deployment target is active during build.
-MACOSX_DEPLOYMENT_TARGET=12
+MACOSX_DEPLOYMENT_TARGET=13
 export MACOSX_DEPLOYMENT_TARGET
 
 # Option to install to strip binaries
@@ -196,7 +196,7 @@ LIPO_INTEL64_FLAGS=
 OTHER_LIBTOOL_OPT=
 
 # Environment to run shared python without installed libraries
-RUNSHARED=       DYLD_FRAMEWORK_PATH=/private/tmp/pythonA3.10-20220811-35232-1s9te1s/Python-3.10.6
+RUNSHARED=       DYLD_FRAMEWORK_PATH=/private/tmp/pythonA3.10-20230215-6295-66ppr9/Python-3.10.10
 
 # ensurepip options
 ENSUREPIP=      no
@@ -217,7 +217,7 @@ EXEMODE=	755
 FILEMODE=	644
 
 # configure script arguments
-CONFIG_ARGS=	 '--prefix=/opt/homebrew/opt/python@3.10' '--enable-ipv6' '--datarootdir=/opt/homebrew/opt/python@3.10/share' '--datadir=/opt/homebrew/opt/python@3.10/share' '--without-ensurepip' '--enable-loadable-sqlite-extensions' '--with-openssl=/opt/homebrew/opt/openssl@1.1' '--with-dbmliborder=gdbm:ndbm' '--enable-optimizations' '--with-lto' '--with-system-expat' '--with-system-ffi' '--with-system-libmpdec' '--enable-framework=/opt/homebrew/opt/python@3.10/Frameworks' '--with-dtrace' 'MACOSX_DEPLOYMENT_TARGET=12' 'CFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk' 'CFLAGS_NODIST=-I/opt/homebrew/include' 'LDFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk' 'LDFLAGS_NODIST=-L/opt/homebrew/lib -Wl,-rpath,/opt/homebrew/lib' 'CPPFLAGS=-I/opt/homebrew/include' 'CC=clang' 'PKG_CONFIG_PATH=/opt/homebrew/opt/openssl@1.1/lib/pkgconfig:/opt/homebrew/opt/readline/lib/pkgconfig:/opt/homebrew/opt/sqlite/lib/pkgconfig:/opt/homebrew/opt/xz/lib/pkgconfig' 'PKG_CONFIG_LIBDIR=/usr/lib/pkgconfig:/opt/homebrew/Library/Homebrew/os/mac/pkgconfig/12'
+CONFIG_ARGS=	 '--prefix=/opt/homebrew/opt/python@3.10' '--enable-ipv6' '--datarootdir=/opt/homebrew/opt/python@3.10/share' '--datadir=/opt/homebrew/opt/python@3.10/share' '--without-ensurepip' '--enable-loadable-sqlite-extensions' '--with-openssl=/opt/homebrew/opt/openssl@1.1' '--with-dbmliborder=gdbm:ndbm' '--enable-optimizations' '--with-system-expat' '--with-system-ffi' '--with-system-libmpdec' '--with-lto' '--enable-framework=/opt/homebrew/opt/python@3.10/Frameworks' '--with-dtrace' 'MACOSX_DEPLOYMENT_TARGET=13' 'CFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.sdk' 'CFLAGS_NODIST=-I/opt/homebrew/include' 'LDFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.sdk' 'LDFLAGS_NODIST=-L/opt/homebrew/lib -Wl,-rpath,/opt/homebrew/lib' 'CPPFLAGS=-I/opt/homebrew/include' 'CC=clang' 'PKG_CONFIG_PATH=/opt/homebrew/opt/openssl@1.1/lib/pkgconfig:/opt/homebrew/opt/readline/lib/pkgconfig:/opt/homebrew/opt/sqlite/lib/pkgconfig:/opt/homebrew/opt/xz/lib/pkgconfig' 'PKG_CONFIG_LIBDIR=/usr/lib/pkgconfig:/opt/homebrew/Library/Homebrew/os/mac/pkgconfig/13'
 
 
 # Subdirectories with code
@@ -264,8 +264,8 @@ PYTHON_FOR_REGEN?=python3
 UPDATE_FILE=$(PYTHON_FOR_REGEN) $(srcdir)/Tools/scripts/update_file.py
 PYTHON_FOR_BUILD=./$(BUILDPYTHON) -E
 _PYTHON_HOST_PLATFORM=
-BUILD_GNU_TYPE=	aarch64-apple-darwin21.5.0
-HOST_GNU_TYPE=	aarch64-apple-darwin21.5.0
+BUILD_GNU_TYPE=	aarch64-apple-darwin22.3.0
+HOST_GNU_TYPE=	aarch64-apple-darwin22.3.0
 
 # Tcl and Tk config info from --with-tcltk-includes and -libs options
 TCLTK_INCLUDES=	
@@ -318,7 +318,7 @@ IO_OBJS=	\
 
 ##########################################################################
 
-LIBFFI_INCLUDEDIR=	/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/include/ffi
+LIBFFI_INCLUDEDIR=	/Library/Developer/CommandLineTools/SDKs/MacOSX13.sdk/usr/include/ffi
 
 ##########################################################################
 # Parser
@@ -1533,6 +1533,7 @@ TESTSUBDIRS=	ctypes/test \
 		test/test_warnings test/test_warnings/data \
 		test/test_zoneinfo test/test_zoneinfo/data \
 		test/tracedmodules \
+		test/typinganndata \
 		test/xmltestdata test/xmltestdata/c14n-20 \
 		test/ziptestdata \
 		tkinter/test tkinter/test/test_tkinter \
@@ -1909,8 +1910,7 @@ rmtestturds:
 	-rm -f gb-18030-2000.xml
 
 docclean:
-	-rm -rf Doc/build
-	-rm -rf Doc/tools/sphinx Doc/tools/pygments Doc/tools/docutils
+	$(MAKE) -C $(srcdir)/Doc clean
 
 # like the 'clean' target but retain the profile guided optimization (PGO)
 # data.  The PGO data is only valid if source code remains unchanged.
@@ -1954,7 +1954,7 @@ clobber: clean
 # Make things extra clean, before making a distribution:
 # remove all generated files, even Makefile[.pre]
 # Keep configure and Python-ast.[ch], it's possible they can't be generated
-distclean: clobber
+distclean: clobber docclean
 	for file in $(srcdir)/Lib/test/data/* ; do \
 	    if test "$$file" != "$(srcdir)/Lib/test/data/README"; then rm "$$file"; fi; \
 	done

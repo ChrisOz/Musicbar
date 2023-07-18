@@ -51,7 +51,6 @@ class Song(BaseModel):
         self.timestamp = datetime.datetime.now()
         return super(Song, self).save(*args, **kwargs)
 
-
 def getGenre(name):
     try:
         return Genre.select().where(Genre.name == name).get()
@@ -81,14 +80,31 @@ def getSong(track, artist, genre):
 db.connect()
 db.create_tables([Genre, Artist, Song])
 
+def findPlayList(playLists, name):
+    for plist in playLists:
+        if plist.name() == name:
+            return plist, True
+    return [], False
+
+def copyTrackToPlayList(playlist):
+    music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
+    playList, flag = findPlayList(music.playlists(), playlist)
+    if flag:
+        music.currentTrack().track.duplicateTo_(playList)
+
 class AppleMusicController(rumps.App):
     def __init__(self):
         super(AppleMusicController, self).__init__(name="Music")
         self.music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
         self.icon = "AppIcon.icns"
-        self.menu = ['Play/Pause','Next','Previous','Stop',None,'Like Song', 'Like Artist', 'Dislike Song','Dislike Artist', None,'Only play liked',None]
+        self.menu = ['Play/Pause','Next','Previous','Stop',None,'Like Song', 'Like Artist', 'Dislike Song','Dislike Artist', None,'Only play liked', "Set target playlist", 'Copy liked songs to:', None]
+        
+        self.playlistMenuItem = self.menu['Copy liked songs to:']
+
         self.playing = exec_command(Command.IS_PLAYING)
         self.oldPosition = 400.1
+        self.targetPlaylist = ''
+        self.copyToPlayList = False # flags whether a liked song should be copies to the selected target playlist
 
     def startPlaylist(self, sender):
         exec_command(Command.START_PLAYLIST, sender.title.strip())
@@ -131,6 +147,8 @@ class AppleMusicController(rumps.App):
         song.liked = True
         song.timestamp = datetime.datetime.now
         song.save()
+        if self.copyToPlayList and not self.targetPlaylist == '':
+            copyTrackToPlayList(self.targetPlaylist)
 
     @rumps.clicked('Dislike Song')
     def dislikeTrack(self, sender):
@@ -145,12 +163,27 @@ class AppleMusicController(rumps.App):
         song.save()
         self.nextTrack(sender)
 
-    @rumps.clicked('Only play liked')
+    #@rumps.clicked('Only play liked')
     def onlyPlayLiked(self, sender):
         sender.state = not sender.state
 
+    #@rumps.clicked('Copy liked songs to:')
+    def setPlaylistAsTarget(self, sender):
+        self.copyToPlayList = not self.copyToPlayList
+        sender.state = self.copyToPlayList
 
-    @rumps.timer(1)
+    #@rumps.clicked('Set target playlist')
+    def setTargetPlaylist(self, sender):
+        if not exec_command(Command.IS_PLAYING):
+            exec_command(Command.PLAYPAUSE, Command.GET_CURRENT_PLAYLIST_NAME)
+            self.targetPlaylist = exec_command(Command.GET_CURRENT_PLAYLIST_NAME) 
+            self.playlistMenuItem.title = 'Copy liked songs to: ' + self.targetPlaylist
+            exec_command(Command.PLAYPAUSE, Command.GET_CURRENT_PLAYLIST_NAME)
+        else:
+            self.targetPlaylist = exec_command(Command.GET_CURRENT_PLAYLIST_NAME) 
+            self.playlistMenuItem.title = 'Copy liked songs to: ' + self.targetPlaylist
+
+   # @rumps.timer(1)
     def updateTitle(self, sender):
         if self.playing:
             with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -169,8 +202,6 @@ class AppleMusicController(rumps.App):
             else:
                 self.oldPosition = pos
                 
-
-            self.menu['Play/Pause'].set_callback(self.playPause)
             #title = exec_command(Command.GET_CURRENT_TRACK_NAME).replace('(','').replace(')','').replace('.','').replace('\'','').strip()
             #self.title = f"{title} • {pos}"
             self.title = f'{posString}'

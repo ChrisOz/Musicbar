@@ -83,9 +83,9 @@
 	<key>PythonInfoDict</key>
 	<dict>
 		<key>PythonExecutable</key>
-		<string>/Users/chrisdrew/.venv/Bos2/bin/python3</string>
+		<string>/Users/chrisdrew/.venv/Bos2/bin/python</string>
 		<key>PythonLongVersion</key>
-		<string>3.10.6 (main, Aug 11 2022, 13:36:31) [Clang 13.1.6 (clang-1316.0.21.2.5)]</string>
+		<string>3.10.10 (main, Feb 16 2023, 02:49:39) [Clang 14.0.0 (clang-1400.0.29.202)]</string>
 		<key>PythonShortVersion</key>
 		<string>3.1</string>
 		<key>py2app</key>
