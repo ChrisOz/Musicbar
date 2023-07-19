@@ -6,11 +6,28 @@ import time
 import re
 from peewee import *
 import datetime
+import os
 import ScriptingBridge
 
+# Initialize database
+path = os.path.expanduser("~/songs.sql")
+
+if os.path.isfile(path):
+    databaseExists = True
+else:
+    databaseExists = False
+
+#Connect to database and create tables
+db = SqliteDatabase(None)
 # Initialize database.
-db = PostgresqlDatabase(None)
-db.init('chris', host='localhost', user='chrisdrew')
+db.init(path, pragmas={'journal_mode': 'wal'})
+#Connect to database and create tables
+
+if not databaseExists:
+    db.connect()
+    db.create_tables([Genre, Artist, Song])
+    db.close()
+
 
 class BaseModel(Model):
     class Meta:
@@ -51,6 +68,7 @@ class Song(BaseModel):
         self.timestamp = datetime.datetime.now()
         return super(Song, self).save(*args, **kwargs)
 
+#functions for easy access to database
 def getGenre(name):
     try:
         return Genre.select().where(Genre.name == name).get()
@@ -76,9 +94,7 @@ def getSong(track, artist, genre):
         song.save()
         return song
 
-#Connect to database and create tables
-db.connect()
-db.create_tables([Genre, Artist, Song])
+#playlist scanning and manipulation functions
 
 def findPlayList(playLists, name):
     for plist in playLists:
@@ -92,19 +108,83 @@ def copyTrackToPlayList(playlist):
     if flag:
         music.currentTrack().track.duplicateTo_(playList)
 
+def scanPlayListForNewSongs(srcPlayListName, destPlayListName, weekYear):
+    db.connect()
+    music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
+    playLists = music.playlists()
+
+    srcPlayList = None 
+    destPlayList = None
+    trackList = []
+    numberOfSongsAdded = 0
+    numberOfSongs = 0
+    numberOfSongsExcluded = 0
+    
+    srcPlayList, foundPlaylist = findPlayList(playLists, srcPlayListName)
+    if not foundPlaylist:
+        return 'Source playlist {} not found.'.format(srcPlayListName)
+
+    destPlayList, foundPlaylist = findPlayList(playLists, destPlayListName)    
+    if not foundPlaylist:
+        #create the destination playlist if it is not found
+        p = {'name':destPlayListName}
+        playlist = music.classForScriptingClass_('playlist').alloc().initWithProperties_(p)
+        music.sources()[0].playlists().insertObject_atIndex_(playlist, 0)
+        
+        #you need to get the newly created playlist 
+        destPlayList, foundPlaylist = findPlayList(playLists, destPlayListName) 
+        if not foundPlaylist:   
+            db.close()
+            return 'Destination playlist {} could not be found.'.format(destPlayListName)
+    else:
+        #extract any existing tracks in the playlist so you can check for duplicates when adding new songs
+        #print(f'Extracting songs from playlist: {srcPlayListName}')
+        for track in destPlayList.tracks():
+            artist = getArtist(track.artist())
+            genre = getGenre(track.genre())
+            song = getSong(track, artist, genre)
+            trackList.append(song)
+
+    # step through tracks in playlist
+    for track in srcPlayList.tracks():
+        artist = getArtist(track.artist())
+        genre = getGenre(track.genre())
+        #print(f'Track: {track.name()} - {artist.name}')
+        song = getSong(track, artist, genre)
+        numberOfSongs = numberOfSongs + 1
+        if song.dateAdded.isocalendar()[0]*100 + song.dateAdded.isocalendar()[1] == weekYear:
+            #print('   - New song')
+            if song.disliked or artist.disliked or (genre.disliked and not artist.liked):
+                #print(f'   - Not added to play list. Artist disliked: {artist.disliked}, Song disliked: {song.disliked}, Genere disliked: {genre.disliked} and Artist not explicitly liked')
+                numberOfSongsExcluded = numberOfSongsExcluded + 1
+            else:
+                if not song in trackList:
+                    track.duplicateTo_(destPlayList)
+                    #print(f'   - Added to playlist')
+                    numberOfSongsAdded = numberOfSongsAdded + 1
+    db.close()
+    return f'Number of songs processed: {numberOfSongs}\n {numberOfSongsAdded} new songs added to:\n\'{destPlayListName}\'\n {numberOfSongsExcluded} excluded.'
+  
+
+
+#rumps menu setup and logic
 class AppleMusicController(rumps.App):
     def __init__(self):
-        super(AppleMusicController, self).__init__(name="Music")
-        self.music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
+        super(AppleMusicController, self).__init__(name="Music",quit_button=None)
         self.icon = "AppIcon.icns"
-        self.menu = ['Play/Pause','Next','Previous','Stop',None,'Like Song', 'Like Artist', 'Dislike Song','Dislike Artist', None,'Only play liked', "Set target playlist", 'Copy liked songs to:', None]
         
-        self.playlistMenuItem = self.menu['Copy liked songs to:']
+        self.PLAYLIST_COUNT = int(exec_command(Command.GET_PLAYLIST_COUNT))
+        self.PLAYLISTS = []
+        FORBIDDEN_PLAYLISTS = ['Library', 'Recently Added', 'Top Most Played', 'My Top Rated', 'Music Videos', 
+                               'Music', 'Recently Played', 'Top 25 Most Played']
+        for n in range(1, self.PLAYLIST_COUNT):
+            name = exec_command(Command.GET_PLAYLIST_NAME_BY_ID, n)
+            if not name in FORBIDDEN_PLAYLISTS:
+                self.PLAYLISTS.append(rumps.MenuItem(name, callback=self.searchAndPlay))
+        self.menu = ['Play/Pause','Next','Previous',None,'Like Song', 'Like Artist', 'Dislike Song','Dislike Artist', None,
+                     ['Scan playlist for new songs', self.PLAYLISTS], None]
 
         self.playing = exec_command(Command.IS_PLAYING)
-        self.oldPosition = 400.1
-        self.targetPlaylist = ''
-        self.copyToPlayList = False # flags whether a liked song should be copies to the selected target playlist
 
     def startPlaylist(self, sender):
         exec_command(Command.START_PLAYLIST, sender.title.strip())
@@ -129,17 +209,11 @@ class AppleMusicController(rumps.App):
         exec_command(Command.PLAY_PREVIOUS_TRACK)
         self.playing = True
 
-    @rumps.clicked('Stop')
-    def stopTrack(self, sender):
-        exec_command(Command.STOP_TRACK)
-        exec_command(Command.QUIT)
-        self.menu['Play/Pause'].set_callback(None)
-        self.title = None   
-        self.playing = False
-
     @rumps.clicked('Like Song')
     def likeTrack(self, sender):
-        track = self.music.currentTrack()
+        db.connect()
+        music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
+        track = music.currentTrack()
         artist = getArtist(track.artist())
         genre = getGenre(track.genre())
         song = getSong(track, artist, genre)
@@ -147,12 +221,13 @@ class AppleMusicController(rumps.App):
         song.liked = True
         song.timestamp = datetime.datetime.now
         song.save()
-        if self.copyToPlayList and not self.targetPlaylist == '':
-            copyTrackToPlayList(self.targetPlaylist)
+        db.close()
 
     @rumps.clicked('Dislike Song')
     def dislikeTrack(self, sender):
-        track = self.music.currentTrack()
+        db.connect()
+        music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
+        track = music.currentTrack()
         artist = getArtist(track.artist())
         genre = getGenre(track.genre())
         song = getSong(track, artist, genre)
@@ -161,58 +236,49 @@ class AppleMusicController(rumps.App):
         song.timestamp = datetime.datetime.now
         exec_command(Command.SET_TRACK_DISLIKE)
         song.save()
+        db.close()
         self.nextTrack(sender)
 
-    #@rumps.clicked('Only play liked')
-    def onlyPlayLiked(self, sender):
-        sender.state = not sender.state
+    @rumps.clicked('Like Artist')
+    def likeArtist(self, sender):
+        db.connect()
+        music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
+        track = music.currentTrack()
+        artist = getArtist(track.artist())
+        artist.disliked = False
+        artist.liked = True
+        artist.timestamp = datetime.datetime.now
+        artist.save()
+        db.close()
 
-    #@rumps.clicked('Copy liked songs to:')
-    def setPlaylistAsTarget(self, sender):
-        self.copyToPlayList = not self.copyToPlayList
-        sender.state = self.copyToPlayList
+    @rumps.clicked('Dislike Artist')
+    def dislikeArtist(self, sender):
+        db.connect()
+        music = ScriptingBridge.SBApplication.applicationWithBundleIdentifier_('com.apple.Music')
+        track = music.currentTrack()
+        artist = getArtist(track.artist())
+        artist.disliked = True
+        artist.liked = False
+        artist.timestamp = datetime.datetime.now
+        artist.save()
+        db.close()
 
-    #@rumps.clicked('Set target playlist')
-    def setTargetPlaylist(self, sender):
-        if not exec_command(Command.IS_PLAYING):
-            exec_command(Command.PLAYPAUSE, Command.GET_CURRENT_PLAYLIST_NAME)
-            self.targetPlaylist = exec_command(Command.GET_CURRENT_PLAYLIST_NAME) 
-            self.playlistMenuItem.title = 'Copy liked songs to: ' + self.targetPlaylist
-            exec_command(Command.PLAYPAUSE, Command.GET_CURRENT_PLAYLIST_NAME)
-        else:
-            self.targetPlaylist = exec_command(Command.GET_CURRENT_PLAYLIST_NAME) 
-            self.playlistMenuItem.title = 'Copy liked songs to: ' + self.targetPlaylist
+    @rumps.clicked('Quit')
+    def clean_up_before_quit(self, sender):
+        rumps.quit_application()
+    
+    def searchAndPlay(self, sender):
+        # generate a year + week number format YYYYWW
+        date = datetime.datetime.now()
+        now = date.isocalendar()
+        weekYear = now[0]*100 + now[1]
 
-   # @rumps.timer(1)
-    def updateTitle(self, sender):
-        if self.playing:
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                executor.submit(self.getPosition)
-
-    def getPosition(self):
-        pos = exec_command(Command.GET_TRACK_POSITION)
-        if pos!='missing value':
-            posString = time.strftime("%M:%S", time.gmtime(float(pos)))
-            
-            if float(pos) < self.oldPosition:
-                skip = exec_command(Command.IS_TRACK_DISLIKED)
-                if skip == 'true':
-                    exec_command(Command.PLAY_NEXT_TRACK)
-                    self.playing = exec_command(Command.IS_PLAYING)
-            else:
-                self.oldPosition = pos
-                
-            #title = exec_command(Command.GET_CURRENT_TRACK_NAME).replace('(','').replace(')','').replace('.','').replace('\'','').strip()
-            #self.title = f"{title} • {pos}"
-            self.title = f'{posString}'
+        # Open the new song list for the week if one exists or create a new playlist
+        playListName = f'New songs {now[1]} - {now[0]}'
+        
+        result = scanPlayListForNewSongs(sender.title, playListName, weekYear)
+        response = rumps.alert(f'Finished Scanning playlist {sender.title}', result)
 
 
 if __name__ == '__main__':
     AppleMusicController().run()
-
-
-
-
-
-
-
