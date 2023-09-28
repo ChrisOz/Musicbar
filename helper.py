@@ -23,7 +23,7 @@ class Command(Enum):
     GET_PLAYLIST_NAME_BY_ID = 'get {{name}} of playlist {}'
     GET_CURRENT_PLAYLIST_NAME = 'get {{name}} of current playlist'
     GET_PLAYLIST_COUNT = 'count playlist'
-    SET_TRACK_LOVE = 'set loved of current track to true'
+    SET_TRACK_LOVE = 'set favorited of current track to true'
     SET_TRACK_DISLIKE = 'set disliked of current track to true'
     QUIT = 'quit'
 

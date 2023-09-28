@@ -14,7 +14,7 @@ OPTIONS = {
 
 setup(
     app=APP,
-    name='Musicbar',
+    name='Musicbar - redux',
     py_modules=['helper'],
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},

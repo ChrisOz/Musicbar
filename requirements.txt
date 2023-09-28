@@ -1,0 +1,9 @@
+altgraph==0.17.3
+macholib==1.16.2
+modulegraph==0.19.5
+peewee==3.16.2
+py2app==0.28.6
+pyobjc-core==9.2
+pyobjc-framework-Cocoa==9.2
+pyobjc-framework-ScriptingBridge==9.2
+rumps==0.4.0

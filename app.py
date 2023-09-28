@@ -21,13 +21,6 @@ else:
 db = SqliteDatabase(None)
 # Initialize database.
 db.init(path, pragmas={'journal_mode': 'wal'})
-#Connect to database and create tables
-
-if not databaseExists:
-    db.connect()
-    db.create_tables([Genre, Artist, Song])
-    db.close()
-
 
 class BaseModel(Model):
     class Meta:
@@ -68,6 +61,13 @@ class Song(BaseModel):
         self.timestamp = datetime.datetime.now()
         return super(Song, self).save(*args, **kwargs)
 
+#Connect to database and create tables
+
+if not databaseExists:
+    db.connect()
+    db.create_tables([Genre, Artist, Song])
+    db.close()
+
 #functions for easy access to database
 def getGenre(name):
     try:
@@ -90,7 +90,7 @@ def getSong(track, artist, genre):
         return Song.get(Song.name == track.name(), Song.artist == artist.id)
     except DoesNotExist:
         song = Song(databaseID = track.databaseID(), name = track.name(), artist = artist.id, genre = genre.id, \
-                liked = track.loved(), disliked = track.disliked())
+                liked = track.favorited(), disliked = track.disliked())
         song.save()
         return song
 
@@ -120,10 +120,6 @@ def scanPlayListForNewSongs(srcPlayListName, destPlayListName, weekYear):
     numberOfSongs = 0
     numberOfSongsExcluded = 0
     
-    srcPlayList, foundPlaylist = findPlayList(playLists, srcPlayListName)
-    if not foundPlaylist:
-        return 'Source playlist {} not found.'.format(srcPlayListName)
-
     destPlayList, foundPlaylist = findPlayList(playLists, destPlayListName)    
     if not foundPlaylist:
         #create the destination playlist if it is not found
@@ -144,6 +140,10 @@ def scanPlayListForNewSongs(srcPlayListName, destPlayListName, weekYear):
             genre = getGenre(track.genre())
             song = getSong(track, artist, genre)
             trackList.append(song)
+
+    srcPlayList, foundPlaylist = findPlayList(playLists, srcPlayListName)
+    if not foundPlaylist:
+        return 'Source playlist {} not found.'.format(srcPlayListName)
 
     # step through tracks in playlist
     for track in srcPlayList.tracks():
@@ -177,7 +177,7 @@ class AppleMusicController(rumps.App):
         self.PLAYLISTS = []
         FORBIDDEN_PLAYLISTS = ['Library', 'Recently Added', 'Top Most Played', 'My Top Rated', 'Music Videos', 
                                'Music', 'Recently Played', 'Top 25 Most Played']
-        for n in range(1, self.PLAYLIST_COUNT):
+        for n in range(1, self.PLAYLIST_COUNT+1):
             name = exec_command(Command.GET_PLAYLIST_NAME_BY_ID, n)
             if not name in FORBIDDEN_PLAYLISTS:
                 self.PLAYLISTS.append(rumps.MenuItem(name, callback=self.searchAndPlay))
